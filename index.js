@@ -20,7 +20,13 @@ async function run() {
     try {
         await client.connect();
         const productCollection = client.db('manufacturer').collection('product');
-        const query = {};
+
+        app.get('/product', async (req, res) => {
+            const query = {};
+            const cursor = productCollection.find(query);
+            const products = await cursor.toArray();
+            res.send(products);
+        })
 
     }
     finally {
