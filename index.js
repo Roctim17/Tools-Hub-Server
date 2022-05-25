@@ -22,6 +22,7 @@ async function run() {
         await client.connect();
         const productCollection = client.db('manufacturer').collection('product');
         const orderCollection = client.db('manufacturer').collection('order');
+        const userCollection = client.db('manufacturer').collection('user');
 
         app.get('/product', async (req, res) => {
             const query = {};
@@ -37,6 +38,23 @@ async function run() {
             res.send(product)
         })
 
+        app.get('/order', async (req, res) => {
+            const customer = req.query.customer;
+            const query = { customer: customer }
+            const order = await orderCollection.find(query).toArray();
+            res.send(order)
+        })
+
+        app.put('/user/:email', async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: user,
+            };
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        })
         app.post('/order', async (req, res) => {
             const order = req.body;
             const result = await orderCollection.insertOne(order);
