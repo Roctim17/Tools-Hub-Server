@@ -41,6 +41,19 @@ async function run() {
         const productCollection = client.db('manufacturer').collection('product');
         const orderCollection = client.db('manufacturer').collection('order');
         const userCollection = client.db('manufacturer').collection('user');
+        const reviewCollection = client.db('manufacturer').collection('review');
+
+        const verifyAdmin = async (req, res, next) => {
+            const requester = req.decoded.email;
+            const requesterAccount = await userCollection.findOne({ email: requester })
+            if (requesterAccount.role === 'admin') {
+                next();
+            }
+            else {
+                res.status(403).send({ message: 'forbidden' });
+            }
+        }
+
 
         app.get('/product', async (req, res) => {
             const query = {};
@@ -49,12 +62,27 @@ async function run() {
             res.send(products);
         });
 
+
         app.get('/product/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
             const product = await productCollection.findOne(query);
             res.send(product)
         })
+
+        app.post('/product', async (req, res) => {
+            const newProduct = req.body;
+            const result = await productCollection.insertOne(newProduct);
+            res.send(result);
+        });
+
+        app.delete('/product/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await productCollection.deleteOne(query);
+            res.send(result);
+        });
+
 
         app.get('/order', verifyJWT, async (req, res) => {
             const customer = req.query.customer;
@@ -63,12 +91,26 @@ async function run() {
             res.send(order)
         })
 
-        app.get('/user', async (req, res) => {
+        app.get('/orders', async (req, res) => {
+            const query = {}
+            const orders = await orderCollection.find(query).toArray();
+            res.send(orders)
+        })
+
+        app.get('/user', verifyJWT, async (req, res) => {
             const users = await userCollection.find().toArray();
             res.send(users)
         })
 
-        app.put('/user/admin/:email', async (req, res) => {
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = await userCollection.findOne({ email: email })
+            const isAdmin = user.role === 'admin';
+            res.send({ admin: isAdmin })
+        })
+
+
+        app.put('/user/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             const filter = { email: email };
             const updateDoc = {
@@ -96,6 +138,20 @@ async function run() {
             const result = await orderCollection.insertOne(order);
             res.send(result);
         })
+
+        app.get('/review', async (req, res) => {
+            const query = {};
+            const cursor = reviewCollection.find(query);
+            const reviews = await cursor.toArray();
+            res.send(reviews);
+        });
+
+        app.post('/review', async (req, res) => {
+            const newReview = req.body;
+            const result = await reviewCollection.insertOne(newReview);
+            res.send(result);
+        });
+
 
     }
     finally {
