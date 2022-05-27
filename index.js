@@ -3,6 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken')
 const { request } = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require('stripe')('sk_test_51L1dz5BZJhaULcBPZzrMvOQ00rKIhLCL7oMLIVYjE5upwEOmhZd409QW8Qb3GV9ybKyBsfQ6Djfv3GyvLxCQDB9h00bbZbpxo5');
 // const res = require('express/lib/response');
 require('dotenv').config();
 
@@ -13,7 +14,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
+console.log(process.env.STRIPE_SECRET_KEY)
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.kzjxy.mongodb.net/?retryWrites=true&w=majority`;
@@ -42,6 +43,7 @@ async function run() {
         const orderCollection = client.db('manufacturer').collection('order');
         const userCollection = client.db('manufacturer').collection('user');
         const reviewCollection = client.db('manufacturer').collection('review');
+        const paymentCollection = client.db('manufacturer').collection('payments');
 
         const verifyAdmin = async (req, res, next) => {
             const requester = req.decoded.email;
@@ -54,6 +56,17 @@ async function run() {
             }
         }
 
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const product = req.body;
+            const price = product.price;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret })
+        });
 
         app.get('/product', async (req, res) => {
             const query = {};
@@ -83,6 +96,13 @@ async function run() {
             res.send(result);
         });
 
+        app.delete('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await orderCollection.deleteOne(query);
+            res.send(result);
+        });
+
 
         app.get('/order', verifyJWT, async (req, res) => {
             const customer = req.query.customer;
@@ -102,12 +122,32 @@ async function run() {
             res.send(users)
         })
 
-        app.get('/admin/:email', async (req, res) => {
+        app.get('/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             const user = await userCollection.findOne({ email: email })
             const isAdmin = user.role === 'admin';
             res.send({ admin: isAdmin })
         })
+
+        //
+        app.put('/product/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id)
+            const updateQuantity = req.body;
+            const filter = { _id: ObjectId(id) };
+            const options = { upsert: true };
+
+            const updateDoc = {
+                $set: {
+                    quantity: updateQuantity.quantity,
+                },
+            };
+            const result = await productCollection.updateOne(filter, updateDoc, options);
+            const resultAns = await productCollection.findOne(filter);
+
+            res.send(resultAns);
+        });
+
 
 
         app.put('/user/admin/:email', verifyJWT, async (req, res) => {
@@ -139,6 +179,8 @@ async function run() {
             res.send(result);
         })
 
+
+
         app.get('/review', async (req, res) => {
             const query = {};
             const cursor = reviewCollection.find(query);
@@ -151,6 +193,32 @@ async function run() {
             const result = await reviewCollection.insertOne(newReview);
             res.send(result);
         });
+
+        app.get('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await orderCollection.findOne(query);
+            res.send(order)
+        })
+
+
+        app.patch('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
+            }
+
+            const result = await paymentCollection.insertOne(payment);
+            const updatedBooking = await orderCollection.updateOne(filter, updatedDoc);
+            res.send(updatedBooking);
+        })
+
+
 
 
     }
