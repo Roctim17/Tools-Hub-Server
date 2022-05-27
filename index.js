@@ -3,7 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken')
 const { request } = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const stripe = require('stripe')('sk_test_51L1dz5BZJhaULcBPZzrMvOQ00rKIhLCL7oMLIVYjE5upwEOmhZd409QW8Qb3GV9ybKyBsfQ6Djfv3GyvLxCQDB9h00bbZbpxo5');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 // const res = require('express/lib/response');
 require('dotenv').config();
 
@@ -14,7 +14,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-console.log(process.env.STRIPE_SECRET_KEY)
+
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.kzjxy.mongodb.net/?retryWrites=true&w=majority`;
