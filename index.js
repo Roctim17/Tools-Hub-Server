@@ -117,10 +117,17 @@ async function run() {
             res.send(orders)
         })
 
-        app.get('/user', verifyJWT, async (req, res) => {
+        app.get('/user', async (req, res) => {
             const users = await userCollection.find().toArray();
             res.send(users)
         })
+
+        app.get("/current-user", async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await userCollection.findOne(query);
+            res.send(result);
+        });
 
         app.get('/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
@@ -172,6 +179,21 @@ async function run() {
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
             res.send({ result, token });
         })
+        app.put("/current-user/:email", async (req, res) => {
+            const email = req.params.email;
+            const user = req.body;
+            const filter = { email: email };
+            const option = { upsert: true };
+            const updatedData = {
+                $set: user,
+            };
+            const result = await userCollection.updateOne(
+                filter,
+                updatedData,
+                option
+            );
+            res.send(result);
+        });
 
         app.post('/order', async (req, res) => {
             const order = req.body;
@@ -217,6 +239,7 @@ async function run() {
             const updatedBooking = await orderCollection.updateOne(filter, updatedDoc);
             res.send(updatedBooking);
         })
+
 
 
 
